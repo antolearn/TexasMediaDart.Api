@@ -47,7 +47,7 @@ jobs:
         run: >
           dotnet publish ${{ env.API_PROJECT }}
           --configuration ${{ env.BUILD_CONFIGURATION }}
-          --no-build
+          --no-restore
           --output ${{ env.PUBLISH_PATH }}
 
       - name: Login to Azure using OIDC
