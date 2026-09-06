@@ -18,6 +18,15 @@ var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
+app.MapGet("/health", () =>
+{
+    return Results.Ok(new
+    {
+        status = "Healthy",
+        service = "TexasMediaDart.Api",
+        timestampUtc = DateTime.UtcNow
+    });
+});
 
 app.MapGet("/weatherforecast", () =>
 {
