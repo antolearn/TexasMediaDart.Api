@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>c2e7a8ba-f9ce-43ce-a5f5-115128839104</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TexasMediaDart.Application\TexasMediaDart.Application.csproj" />
+    <ProjectReference Include="..\TexasMediaDart.Infrastructure\TexasMediaDart.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

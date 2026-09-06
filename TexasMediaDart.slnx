@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TexasMediaDart.Api/TexasMediaDart.Api.csproj" />
+    <Project Path="src/TexasMediaDart.Application/TexasMediaDart.Application.csproj" />
+    <Project Path="src/TexasMediaDart.Infrastructure/TexasMediaDart.Infrastructure.csproj" />
+  </Folder>
+</Solution>
