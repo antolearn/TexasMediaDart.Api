@@ -1,0 +1,62 @@
+name: API Deploy - Prod
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  DOTNET_VERSION: '10.0.303'
+  BUILD_CONFIGURATION: 'Release'
+  SOLUTION_FILE: 'TexasMediaDart.slnx'
+  API_PROJECT: 'src/TexasMediaDart.Api/TexasMediaDart.Api.csproj'
+  PUBLISH_PATH: '${{ github.workspace }}/publish'
+  AZURE_WEBAPP_NAME: 'texasmediadart-api-prod'
+
+jobs:
+  deploy-prod:
+    name: Deploy API to Production
+    runs-on: ubuntu-latest
+
+    environment:
+      name: prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_FILE }}
+
+      - name: Build solution
+        run: >
+          dotnet build ${{ env.SOLUTION_FILE }}
+          --configuration ${{ env.BUILD_CONFIGURATION }}
+          --no-restore
+
+      - name: Publish API
+        run: >
+          dotnet publish ${{ env.API_PROJECT }}
+          --configuration ${{ env.BUILD_CONFIGURATION }}
+          --no-restore
+          --output ${{ env.PUBLISH_PATH }}
+
+      - name: Login to Azure using OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy API to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          package: ${{ env.PUBLISH_PATH }}
