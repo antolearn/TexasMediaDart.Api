@@ -13,8 +13,16 @@ builder.Services.AddCors(options =>
             {
                 var uri = new Uri(origin);
 
-                return uri.Host == "localhost" ||
-                       uri.Host == "127.0.0.1";
+                var isLocalhost =
+                    uri.Host == "localhost" ||
+                    uri.Host == "127.0.0.1";
+
+                var isDevFrontend =
+                    origin.Equals(
+                        "https://thankful-smoke-0f354ab0f.5.azurestaticapps.net",
+                        StringComparison.OrdinalIgnoreCase);
+
+                return isLocalhost || isDevFrontend;
             })
             .AllowAnyHeader()
             .AllowAnyMethod();
