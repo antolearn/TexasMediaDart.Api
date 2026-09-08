@@ -2,17 +2,18 @@ name: API Deploy - Prod
 
 on:
   workflow_dispatch:
+    inputs:
+      api_version:
+        description: 'Approved API version from DEV (example: 2026.09.08.0010)'
+        required: true
+        type: string
 
 permissions:
   contents: read
+  actions: read
   id-token: write
 
 env:
-  DOTNET_VERSION: '10.0.303'
-  BUILD_CONFIGURATION: 'Release'
-  SOLUTION_FILE: 'TexasMediaDart.slnx'
-  API_PROJECT: 'src/TexasMediaDart.Api/TexasMediaDart.Api.csproj'
-  PUBLISH_PATH: '${{ github.workspace }}/publish'
   AZURE_WEBAPP_NAME: 'texasmediadart-api-prod'
 
 jobs:
@@ -24,29 +25,67 @@ jobs:
       name: prod
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Display Production API Version
+        shell: bash
+        run: |
+          echo "API version approved for PROD:"
+          echo "${{ inputs.api_version }}"
 
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          echo "### Production API Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Version:** ${{ inputs.api_version }}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Restore dependencies
-        run: dotnet restore ${{ env.SOLUTION_FILE }}
+      - name: Download Approved API Artifact
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          API_VERSION: ${{ inputs.api_version }}
+        run: |
+          ARTIFACT_NAME="TexasMediaDart.Api-${API_VERSION}"
 
-      - name: Build solution
-        run: >
-          dotnet build ${{ env.SOLUTION_FILE }}
-          --configuration ${{ env.BUILD_CONFIGURATION }}
-          --no-restore
+          echo "Looking for artifact:"
+          echo "$ARTIFACT_NAME"
 
-      - name: Publish API
-        run: >
-          dotnet publish ${{ env.API_PROJECT }}
-          --configuration ${{ env.BUILD_CONFIGURATION }}
-          --no-restore
-          --output ${{ env.PUBLISH_PATH }}
+          ARTIFACT_ID=$(gh api \
+            "repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            --jq ".artifacts
+              | map(select(.name == \"$ARTIFACT_NAME\" and .expired == false))
+              | sort_by(.created_at)
+              | reverse
+              | .[0].id")
+
+          if [ -z "$ARTIFACT_ID" ] || [ "$ARTIFACT_ID" = "null" ]; then
+            echo "Artifact '$ARTIFACT_NAME' was not found or has expired."
+            exit 1
+          fi
+
+          echo "Artifact found."
+          echo "Artifact ID: $ARTIFACT_ID"
+
+          mkdir -p artifacts
+
+          gh api \
+            "repos/${{ github.repository }}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            > artifact.zip
+
+          unzip -o artifact.zip -d artifacts
+
+          echo "Artifact downloaded successfully."
+
+      - name: Verify Approved API Package
+        shell: bash
+        env:
+          API_VERSION: ${{ inputs.api_version }}
+        run: |
+          PACKAGE="artifacts/TexasMediaDart.Api-${API_VERSION}.zip"
+
+          if [ ! -f "$PACKAGE" ]; then
+            echo "Approved API package was not found:"
+            echo "$PACKAGE"
+            exit 1
+          fi
+
+          echo "Approved PROD API package:"
+          echo "$PACKAGE"
 
       - name: Login to Azure using OIDC
         uses: azure/login@v3
@@ -59,4 +98,4 @@ jobs:
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          package: ${{ env.PUBLISH_PATH }}
+          package: artifacts/TexasMediaDart.Api-${{ inputs.api_version }}.zip
