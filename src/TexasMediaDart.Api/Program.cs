@@ -4,6 +4,11 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+var allowedOrigins =
+    builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>() ?? [];
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendPolicy", policy =>
@@ -11,18 +16,25 @@ builder.Services.AddCors(options =>
         policy
             .SetIsOriginAllowed(origin =>
             {
-                var uri = new Uri(origin);
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return false;
+                }
 
                 var isLocalhost =
-                    uri.Host == "localhost" ||
-                    uri.Host == "127.0.0.1";
-
-                var isDevFrontend =
-                    origin.Equals(
-                        "https://thankful-smoke-0f354ab0f.5.azurestaticapps.net",
+                    uri.Host.Equals(
+                        "localhost",
+                        StringComparison.OrdinalIgnoreCase) ||
+                    uri.Host.Equals(
+                        "127.0.0.1",
                         StringComparison.OrdinalIgnoreCase);
 
-                return isLocalhost || isDevFrontend;
+                var isConfiguredOrigin =
+                    allowedOrigins.Contains(
+                        origin,
+                        StringComparer.OrdinalIgnoreCase);
+
+                return isLocalhost || isConfiguredOrigin;
             })
             .AllowAnyHeader()
             .AllowAnyMethod();
