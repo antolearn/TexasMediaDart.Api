@@ -67,6 +67,8 @@ jobs:
           --configuration ${{ env.BUILD_CONFIGURATION }}
           --no-restore
           --output ${{ env.PUBLISH_PATH }}
+          /p:InformationalVersion=${{ env.BUILD_VERSION }}
+          /p:IncludeSourceRevisionInInformationalVersion=false
 
       - name: Create versioned API package
         shell: bash

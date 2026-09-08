@@ -1,3 +1,5 @@
+using System.Reflection;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -107,7 +109,24 @@ app.MapGet("/health/db", async (IConfiguration configuration) =>
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 });
+app.MapGet("/health/version", (IHostEnvironment environment) =>
+{
+    var assembly = Assembly.GetExecutingAssembly();
 
+    var version =
+        assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion
+        ?? "unknown";
+
+    return Results.Ok(new
+    {
+        application = "TexasMediaDart.Api",
+        version,
+        environment = environment.EnvironmentName,
+        timestampUtc = DateTime.UtcNow
+    });
+});
 app.MapGet("/weatherforecast", () =>
 {
     var forecast =  Enumerable.Range(1, 5).Select(index =>
