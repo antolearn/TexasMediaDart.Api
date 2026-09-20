@@ -99,3 +99,25 @@ jobs:
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           package: artifacts/TexasMediaDart.Api-${{ inputs.api_version }}.zip
+      - name: Validate PROD API health
+        shell: bash
+        run: |
+          HEALTH_URL="${{ vars.API_BASE_URL }}/health/db"
+
+          echo "Waiting for PROD API to start..."
+          sleep 15
+
+          echo "Checking API health:"
+          echo "$HEALTH_URL"
+
+          curl \
+            --fail \
+            --show-error \
+            --silent \
+            --retry 6 \
+            --retry-delay 10 \
+            --retry-all-errors \
+            "$HEALTH_URL"
+
+          echo
+          echo "PROD API health validation passed."
