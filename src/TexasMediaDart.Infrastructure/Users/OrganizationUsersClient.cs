@@ -1,4 +1,6 @@
+using System.Net;
 using System.Net.Http.Json;
+using TexasMediaDart.Application.Common.Exceptions;
 using TexasMediaDart.Application.Users.Abstractions;
 using TexasMediaDart.Application.Users.Models;
 
@@ -40,13 +42,15 @@ public sealed class OrganizationUsersClient
         if (isActive.HasValue)
         {
             queryParameters.Add(
-                $"isActive={isActive.Value.ToString().ToLowerInvariant()}");
+                $"isActive={
+                    isActive.Value.ToString().ToLowerInvariant()}");
         }
 
         if (isApproved.HasValue)
         {
             queryParameters.Add(
-                $"isApproved={isApproved.Value.ToString().ToLowerInvariant()}");
+                $"isApproved={
+                    isApproved.Value.ToString().ToLowerInvariant()}");
         }
 
         var requestUri =
@@ -56,6 +60,12 @@ public sealed class OrganizationUsersClient
             await _httpClient.GetAsync(
                 requestUri,
                 cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new ForbiddenException(
+                "Access to organization users is forbidden.");
+        }
 
         response.EnsureSuccessStatusCode();
 
