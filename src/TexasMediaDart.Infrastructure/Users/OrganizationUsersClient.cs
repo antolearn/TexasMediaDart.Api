@@ -200,4 +200,58 @@ public sealed class OrganizationUsersClient
             ?? throw new InvalidOperationException(
                 "Organization API returned an empty users response.");
     }
+
+    public async Task<OrganizationUserDto> CreateAsync(
+        Guid identityUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var request = new
+        {
+            identityUserId
+        };
+
+        using var response =
+            await _httpClient.PostAsJsonAsync(
+                "api/users",
+                request,
+                cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new ForbiddenException(
+                "Creating organization users is forbidden.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            var errorMessage =
+                await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+            throw new BadRequestException(errorMessage);
+        }
+
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            var errorMessage =
+                await response.Content.ReadAsStringAsync(
+                    cancellationToken);
+
+            throw new ConflictException(
+                string.IsNullOrWhiteSpace(errorMessage)
+                    ? "The identity user already belongs to an organization."
+                    : errorMessage);
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var result =
+            await response.Content
+                .ReadFromJsonAsync<OrganizationUserDto>(
+                    cancellationToken: cancellationToken);
+
+        return result
+            ?? throw new InvalidOperationException(
+                "Organization API returned an empty create user response.");
+    }
 }

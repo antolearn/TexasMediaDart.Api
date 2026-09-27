@@ -23,4 +23,7 @@ public interface IOrganizationUsersClient
     Task<OrganizationUserSearchResultDto> SearchByIdentityIdsAsync(
         OrganizationUserSearchByIdentityIdsRequest request,
         CancellationToken cancellationToken = default);
-}
+        Task<OrganizationUserDto> CreateAsync(
+        Guid identityUserId,
+        CancellationToken cancellationToken = default);
+    }
