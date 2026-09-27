@@ -46,4 +46,45 @@ public sealed class IdentityUsersClient
             ? Array.Empty<IdentityUserDto>()
             : users;
     }
+
+    public async Task<IReadOnlyList<IdentityUserDto>>
+    SearchByEmailAndIdsAsync(
+        IReadOnlyCollection<Guid> userIds,
+        string email,
+        CancellationToken cancellationToken = default)
+{
+    if (userIds.Count == 0)
+    {
+        return Array.Empty<IdentityUserDto>();
+    }
+
+    if (string.IsNullOrWhiteSpace(email))
+    {
+        return Array.Empty<IdentityUserDto>();
+    }
+
+    var request = new
+    {
+        userIds,
+        email = email.Trim()
+    };
+
+    using var response =
+        await _httpClient.PostAsJsonAsync(
+            "api/users/search-by-email",
+            request,
+            cancellationToken);
+
+    response.EnsureSuccessStatusCode();
+
+    var users =
+        await response.Content
+            .ReadFromJsonAsync<List<IdentityUserDto>>(
+                cancellationToken: cancellationToken);
+
+    return users is null
+        ? Array.Empty<IdentityUserDto>()
+        : users;
+}
+
 }

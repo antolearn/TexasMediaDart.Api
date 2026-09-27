@@ -27,21 +27,26 @@ public sealed class UsersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Search(
         [FromQuery] Guid? identityUserId = null,
+        [FromQuery] string? email = null,
         [FromQuery] bool? isActive = null,
         [FromQuery] bool? isApproved = null,
+        [FromQuery] string sortBy = "createdUtc",
+        [FromQuery] string sortDirection = "desc",
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 25,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var query =
-                new SearchUsersQuery(
-                    identityUserId,
-                    isActive,
-                    isApproved,
-                    pageNumber,
-                    pageSize);
+            var query = new SearchUsersQuery(
+                identityUserId,
+                email,
+                isActive,
+                isApproved,
+                sortBy,
+                sortDirection,
+                pageNumber,
+                pageSize);
 
             var result =
                 await _searchUsersHandler.HandleAsync(
@@ -50,9 +55,14 @@ public sealed class UsersController : ControllerBase
 
             return Ok(result);
         }
+        catch (BadRequestException ex)
+        {
+            return BadRequest(ex.Message);
+        }
         catch (ForbiddenException)
         {
             return Forbid();
         }
+
     }
 }

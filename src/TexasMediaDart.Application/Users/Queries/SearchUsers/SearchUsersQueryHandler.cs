@@ -20,14 +20,92 @@ public sealed class SearchUsersQueryHandler
         SearchUsersQuery query,
         CancellationToken cancellationToken = default)
     {
-        var organizationResult =
-            await _organizationUsersClient.SearchAsync(
-                query.IdentityUserId,
-                query.IsActive,
-                query.IsApproved,
-                query.PageNumber,
-                query.PageSize,
-                cancellationToken);
+        OrganizationUserSearchResultDto organizationResult;
+
+        if (string.IsNullOrWhiteSpace(query.Email))
+        {
+            // Existing Phase A flow.
+            organizationResult =
+                await _organizationUsersClient.SearchAsync(
+                    query.IdentityUserId,
+                    query.IsActive,
+                    query.IsApproved,
+                    query.SortBy,
+                    query.SortDirection,
+                    query.PageNumber,
+                    query.PageSize,
+                    cancellationToken);
+        }
+        else
+        {
+            // Phase B:
+            // First obtain all Organization-scoped candidate Identity IDs
+            // after applying Organization-owned filters, but before paging.
+            var candidateIdentityUserIds =
+                await _organizationUsersClient
+                    .GetCandidateIdentityUserIdsAsync(
+                        query.IdentityUserId,
+                        query.IsActive,
+                        query.IsApproved,
+                        cancellationToken);
+
+            IReadOnlyCollection<Guid> matchingIdentityUserIds;
+
+            if (candidateIdentityUserIds.Count == 0)
+            {
+                // Do not call Identity search with an empty candidate list.
+                matchingIdentityUserIds =
+                    Array.Empty<Guid>();
+            }
+            else
+            {
+                var matchingIdentityUsers =
+                    await _identityUsersClient
+                        .SearchByEmailAndIdsAsync(
+                            candidateIdentityUserIds,
+                            query.Email.Trim(),
+                            cancellationToken);
+
+                matchingIdentityUserIds =
+                    matchingIdentityUsers
+                        .Select(user => user.UserId)
+                        .Distinct()
+                        .ToArray();
+            }
+
+            // Final Organization search performs the authoritative
+            // CreatedUtc sort, pagination and total count.
+            organizationResult =
+                await _organizationUsersClient
+                    .SearchByIdentityIdsAsync(
+                        new OrganizationUserSearchByIdentityIdsRequest
+                        {
+                            IdentityUserIds =
+                                matchingIdentityUserIds,
+
+                            IdentityUserId =
+                                query.IdentityUserId,
+
+                            IsActive =
+                                query.IsActive,
+
+                            IsApproved =
+                                query.IsApproved,
+
+                            SortBy =
+                                query.SortBy,
+
+                            SortDirection =
+                                query.SortDirection,
+
+                            PageNumber =
+                                query.PageNumber,
+
+                            PageSize =
+                                query.PageSize
+                        },
+                        cancellationToken);
+        }
 
         if (organizationResult.Items.Count == 0)
         {
