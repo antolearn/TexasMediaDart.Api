@@ -87,8 +87,10 @@ public sealed class UsersController : ControllerBase
         {
             if (string.IsNullOrWhiteSpace(request.Email))
             {
-                return BadRequest(
-                    "Email is required.");
+                return Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Bad Request",
+                    detail: "Email is required.");
             }
 
             var command =
@@ -106,15 +108,24 @@ public sealed class UsersController : ControllerBase
         }
         catch (BadRequestException ex)
         {
-            return BadRequest(ex.Message);
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request",
+                detail: ex.Message);
         }
         catch (NotFoundException ex)
         {
-            return NotFound(ex.Message);
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found",
+                detail: ex.Message);
         }
         catch (ConflictException ex)
         {
-            return Conflict(ex.Message);
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict",
+                detail: ex.Message);
         }
         catch (ForbiddenException)
         {
