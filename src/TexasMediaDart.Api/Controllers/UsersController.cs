@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TexasMediaDart.Api.Models.Users;
 using TexasMediaDart.Application.Common.Exceptions;
+using TexasMediaDart.Application.Users.Commands.CreateUser;
 using TexasMediaDart.Application.Users.Models;
 using TexasMediaDart.Application.Users.Queries.SearchUsers;
 
@@ -12,11 +14,14 @@ namespace TexasMediaDart.Api.Controllers;
 public sealed class UsersController : ControllerBase
 {
     private readonly SearchUsersQueryHandler _searchUsersHandler;
+    private readonly CreateUserCommandHandler _createUserHandler;
 
     public UsersController(
-        SearchUsersQueryHandler searchUsersHandler)
+        SearchUsersQueryHandler searchUsersHandler,
+        CreateUserCommandHandler createUserHandler)
     {
         _searchUsersHandler = searchUsersHandler;
+        _createUserHandler = createUserHandler;
     }
 
     [HttpGet]
@@ -63,6 +68,68 @@ public sealed class UsersController : ControllerBase
         {
             return Forbid();
         }
+    }
 
+    [HttpPost]
+    [ProducesResponseType(
+        typeof(UserDto),
+        StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Create(
+        [FromBody] CreateUserRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Email))
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Bad Request",
+                    detail: "Email is required.");
+            }
+
+            var command =
+                new CreateUserCommand(
+                    request.Email.Trim());
+
+            var result =
+                await _createUserHandler.HandleAsync(
+                    command,
+                    cancellationToken);
+
+            return StatusCode(
+                StatusCodes.Status201Created,
+                result);
+        }
+        catch (BadRequestException ex)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request",
+                detail: ex.Message);
+        }
+        catch (NotFoundException ex)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found",
+                detail: ex.Message);
+        }
+        catch (ConflictException ex)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status409Conflict,
+                title: "Conflict",
+                detail: ex.Message);
+        }
+        catch (ForbiddenException)
+        {
+            return Forbid();
+        }
     }
 }

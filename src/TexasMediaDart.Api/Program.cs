@@ -4,11 +4,14 @@ using Microsoft.IdentityModel.Tokens;
 using TexasMediaDart.Api.Extensions;
 using TexasMediaDart.Application.Users.Queries.SearchUsers;
 using TexasMediaDart.Infrastructure;
+using TexasMediaDart.Application.Users.Commands.CreateUser;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<SearchUsersQueryHandler>();
+builder.Services.AddScoped<CreateUserCommandHandler>();
 
 var allowedOrigins =
     builder.Configuration

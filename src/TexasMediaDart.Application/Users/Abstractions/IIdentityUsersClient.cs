@@ -12,4 +12,8 @@ public interface IIdentityUsersClient
         IReadOnlyCollection<Guid> userIds,
         string email,
         CancellationToken cancellationToken = default);
+
+    Task<IdentityUserDto?> GetByEmailAsync(
+        string email,
+        CancellationToken cancellationToken = default);
 }
