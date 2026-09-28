@@ -5,6 +5,7 @@ using TexasMediaDart.Api.Extensions;
 using TexasMediaDart.Application.Users.Queries.SearchUsers;
 using TexasMediaDart.Infrastructure;
 using TexasMediaDart.Application.Users.Commands.CreateUser;
+using TexasMediaDart.Application.UserInvitations.Commands.AcceptUserInvitation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +13,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<SearchUsersQueryHandler>();
 builder.Services.AddScoped<CreateUserCommandHandler>();
+builder.Services.AddScoped<AcceptUserInvitationCommandHandler>();
 
 var allowedOrigins =
     builder.Configuration
@@ -97,7 +99,6 @@ builder.Services
 builder.Services.AddAuthorization();
 builder.Services.AddInfrastructure(
     builder.Configuration);
-builder.Services.AddScoped<SearchUsersQueryHandler>();
 
 var app = builder.Build();
 
