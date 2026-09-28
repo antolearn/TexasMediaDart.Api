@@ -5,6 +5,8 @@ using TexasMediaDart.Application.Users.Abstractions;
 using TexasMediaDart.Infrastructure.Http;
 using TexasMediaDart.Infrastructure.UserInvitations;
 using TexasMediaDart.Infrastructure.Users;
+using TexasMediaDart.Application.Organizations.Abstractions;
+using TexasMediaDart.Infrastructure.Organizations;
 
 namespace TexasMediaDart.Infrastructure;
 
@@ -79,6 +81,30 @@ public static class DependencyInjection
                     client.BaseAddress =
                         new Uri(organizationApiBaseUrl);
                 });
+        // Current Organization lookup executes in the context
+        // of the currently authenticated user.
+        services
+            .AddHttpClient<
+                IOrganizationsClient,
+                OrganizationsClient>(
+                client =>
+                {
+                    client.BaseAddress =
+                        new Uri(organizationApiBaseUrl);
+                })
+            .AddHttpMessageHandler<BearerTokenHandler>();
+        // Invitation creation executes in the context
+        // of the currently authenticated user.
+        services
+            .AddHttpClient<
+                IIdentityUserInvitationCreationClient,
+                IdentityUserInvitationCreationClient>(
+                client =>
+                {
+                    client.BaseAddress =
+                        new Uri(identityApiBaseUrl);
+                })
+            .AddHttpMessageHandler<BearerTokenHandler>();
 
         return services;
     }

@@ -72,7 +72,7 @@ public sealed class UsersController : ControllerBase
 
     [HttpPost]
     [ProducesResponseType(
-        typeof(UserDto),
+        typeof(CreateUserResult),
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
