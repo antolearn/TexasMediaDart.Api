@@ -133,7 +133,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Configure DEV email settings
+      - name: Configure DEV application settings
         shell: bash
         run: |
           az webapp config appsettings set \
@@ -144,7 +144,8 @@ jobs:
               "Email__Provider=${{ vars.EMAIL_PROVIDER }}" \
               "Email__SenderAddress=${{ vars.EMAIL_SENDER_ADDRESS }}" \
               "Email__SenderDisplayName=${{ vars.EMAIL_SENDER_DISPLAY_NAME }}" \
-              "Frontend__BaseUrl=${{ vars.FRONTEND_BASE_URL }}"
+              "Frontend__BaseUrl=${{ vars.FRONTEND_BASE_URL }}" \
+              "ServiceAuthentication__IdentityApiKey=${{ secrets.IDENTITY_SERVICE_API_KEY }}"
 
       - name: Deploy API to Azure App Service
         uses: azure/webapps-deploy@v3
