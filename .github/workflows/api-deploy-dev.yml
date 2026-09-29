@@ -137,18 +137,31 @@ jobs:
         shell: bash
         env:
           IDENTITY_SERVICE_API_KEY: ${{ secrets.IDENTITY_SERVICE_API_KEY }}
+          ORGANIZATION_SERVICE_API_KEY: ${{ secrets.ORGANIZATION_SERVICE_API_KEY }}
+          COMMUNICATION_SERVICES_CONNECTION_STRING: ${{ secrets.COMMUNICATION_SERVICES_CONNECTION_STRING }}
         run: |
           if [ -z "$IDENTITY_SERVICE_API_KEY" ]; then
             echo "ERROR: GitHub secret IDENTITY_SERVICE_API_KEY is missing or empty."
             exit 1
           fi
 
-          echo "IDENTITY_SERVICE_API_KEY is available to the DEV deployment."
+          if [ -z "$ORGANIZATION_SERVICE_API_KEY" ]; then
+            echo "ERROR: GitHub secret ORGANIZATION_SERVICE_API_KEY is missing or empty."
+            exit 1
+          fi
+
+          if [ -z "$COMMUNICATION_SERVICES_CONNECTION_STRING" ]; then
+            echo "ERROR: GitHub secret COMMUNICATION_SERVICES_CONNECTION_STRING is missing or empty."
+            exit 1
+          fi
+
+          echo "Required DEV secrets are available to the deployment."
 
       - name: Configure DEV application settings
         shell: bash
         env:
           IDENTITY_SERVICE_API_KEY: ${{ secrets.IDENTITY_SERVICE_API_KEY }}
+          ORGANIZATION_SERVICE_API_KEY: ${{ secrets.ORGANIZATION_SERVICE_API_KEY }}
           COMMUNICATION_SERVICES_CONNECTION_STRING: ${{ secrets.COMMUNICATION_SERVICES_CONNECTION_STRING }}
         run: |
           az webapp config appsettings set \
@@ -160,23 +173,36 @@ jobs:
               "Email__SenderAddress=${{ vars.EMAIL_SENDER_ADDRESS }}" \
               "Email__SenderDisplayName=${{ vars.EMAIL_SENDER_DISPLAY_NAME }}" \
               "Frontend__BaseUrl=${{ vars.FRONTEND_BASE_URL }}" \
-              "ServiceAuthentication__IdentityApiKey=$IDENTITY_SERVICE_API_KEY"
+              "ServiceAuthentication__IdentityApiKey=$IDENTITY_SERVICE_API_KEY" \
+              "ServiceAuthentication__OrganizationApiKey=$ORGANIZATION_SERVICE_API_KEY"
 
-      - name: Verify DEV service authentication setting
+      - name: Verify DEV service authentication settings
         shell: bash
         run: |
-          SETTING_EXISTS=$(az webapp config appsettings list \
+          IDENTITY_SETTING=$(az webapp config appsettings list \
             --name "${{ env.AZURE_WEBAPP_NAME }}" \
             --resource-group "TexasMediaDart-Dev" \
             --query "[?name=='ServiceAuthentication__IdentityApiKey'].name | [0]" \
             --output tsv)
 
-          if [ "$SETTING_EXISTS" != "ServiceAuthentication__IdentityApiKey" ]; then
+          if [ "$IDENTITY_SETTING" != "ServiceAuthentication__IdentityApiKey" ]; then
             echo "ERROR: ServiceAuthentication__IdentityApiKey was not created in Azure App Service."
             exit 1
           fi
 
-          echo "ServiceAuthentication__IdentityApiKey exists in Azure App Service."
+          ORGANIZATION_SETTING=$(az webapp config appsettings list \
+            --name "${{ env.AZURE_WEBAPP_NAME }}" \
+            --resource-group "TexasMediaDart-Dev" \
+            --query "[?name=='ServiceAuthentication__OrganizationApiKey'].name | [0]" \
+            --output tsv)
+
+          if [ "$ORGANIZATION_SETTING" != "ServiceAuthentication__OrganizationApiKey" ]; then
+            echo "ERROR: ServiceAuthentication__OrganizationApiKey was not created in Azure App Service."
+            exit 1
+          fi
+
+          echo "Identity service authentication setting exists."
+          echo "Organization service authentication setting exists."
 
       - name: Deploy API to Azure App Service
         uses: azure/webapps-deploy@v3
