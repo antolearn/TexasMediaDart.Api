@@ -1,0 +1,3 @@
+namespace TexasMediaDart.Application.UserInvitations.Queries.GetPendingUserInvitations;
+
+public sealed record GetPendingUserInvitationsQuery;

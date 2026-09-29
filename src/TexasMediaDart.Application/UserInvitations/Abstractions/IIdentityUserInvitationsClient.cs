@@ -14,4 +14,13 @@ public interface IIdentityUserInvitationsClient
         Guid invitationId,
         Guid identityUserId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<PendingInvitationDto>> GetPendingAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default);
+
+    Task<ResendInvitationDto> ResendAsync(
+        Guid invitationId,
+        Guid organizationId,
+        CancellationToken cancellationToken = default);
 }

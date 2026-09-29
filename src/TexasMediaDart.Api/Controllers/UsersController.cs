@@ -70,9 +70,8 @@ public sealed class UsersController : ControllerBase
         }
     }
 
-    [HttpPost]
     [ProducesResponseType(
-        typeof(CreateUserResult),
+        typeof(CreateUserResponse),
         StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -102,10 +101,25 @@ public sealed class UsersController : ControllerBase
                     command,
                     cancellationToken);
 
+            var response = new CreateUserResponse
+            {
+                Status = result.Status,
+                User = result.User,
+                Invitation = result.Invitation is null
+                    ? null
+                    : new CreateUserInvitationResponse
+                    {
+                        InvitationId = result.Invitation.InvitationId,
+                        Email = result.Invitation.Email,
+                        OrganizationId = result.Invitation.OrganizationId,
+                        ExpiresUtc = result.Invitation.ExpiresUtc
+                    }
+            };
+
             return StatusCode(
                 StatusCodes.Status201Created,
-                result);
-        }
+                response);
+                    }
         catch (BadRequestException ex)
         {
             return Problem(

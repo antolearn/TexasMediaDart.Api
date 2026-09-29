@@ -13,19 +13,24 @@ public sealed class CreateUserCommandHandler
     private readonly IOrganizationsClient _organizationsClient;
     private readonly IIdentityUserInvitationCreationClient
         _identityUserInvitationCreationClient;
+    private readonly IUserInvitationEmailSender
+        _userInvitationEmailSender;
 
     public CreateUserCommandHandler(
         IIdentityUsersClient identityUsersClient,
         IOrganizationUsersClient organizationUsersClient,
         IOrganizationsClient organizationsClient,
         IIdentityUserInvitationCreationClient
-            identityUserInvitationCreationClient)
+            identityUserInvitationCreationClient,
+        IUserInvitationEmailSender userInvitationEmailSender)
     {
         _identityUsersClient = identityUsersClient;
         _organizationUsersClient = organizationUsersClient;
         _organizationsClient = organizationsClient;
         _identityUserInvitationCreationClient =
             identityUserInvitationCreationClient;
+        _userInvitationEmailSender =
+            userInvitationEmailSender;
     }
 
     public async Task<CreateUserResult> HandleAsync(
@@ -134,6 +139,12 @@ public sealed class CreateUserCommandHandler
                 email,
                 organization.OrganizationId,
                 cancellationToken);
+
+        await _userInvitationEmailSender.SendAsync(
+            invitation.Email,
+            invitation.InvitationToken,
+            invitation.ExpiresUtc,
+            cancellationToken);
 
         return new CreateUserResult
         {

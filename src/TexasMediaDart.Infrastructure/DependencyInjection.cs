@@ -106,6 +106,30 @@ public static class DependencyInjection
                 })
             .AddHttpMessageHandler<BearerTokenHandler>();
 
+    var emailProvider =
+    configuration["Email:Provider"]
+    ?? throw new InvalidOperationException(
+        "Email:Provider is not configured.");
+
+switch (emailProvider)
+{
+    case "Log":
+        services.AddScoped<
+            IUserInvitationEmailSender,
+            LogUserInvitationEmailSender>();
+        break;
+
+        case "AzureCommunicationServices":
+            services.AddScoped<
+                IUserInvitationEmailSender,
+                AzureCommunicationUserInvitationEmailSender>();
+            break;
+
+        default:
+            throw new InvalidOperationException(
+                $"Unsupported email provider: {emailProvider}");
+    }
+
         return services;
     }
 }
