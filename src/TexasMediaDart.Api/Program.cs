@@ -6,6 +6,8 @@ using TexasMediaDart.Application.Users.Queries.SearchUsers;
 using TexasMediaDart.Infrastructure;
 using TexasMediaDart.Application.Users.Commands.CreateUser;
 using TexasMediaDart.Application.UserInvitations.Commands.AcceptUserInvitation;
+using TexasMediaDart.Application.UserInvitations.Commands.ResendUserInvitation;
+using TexasMediaDart.Application.UserInvitations.Queries.GetPendingUserInvitations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +16,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<SearchUsersQueryHandler>();
 builder.Services.AddScoped<CreateUserCommandHandler>();
 builder.Services.AddScoped<AcceptUserInvitationCommandHandler>();
+builder.Services.AddScoped<ResendUserInvitationCommandHandler>();
+builder.Services.AddScoped<GetPendingUserInvitationsQueryHandler>();
 
 var allowedOrigins =
     builder.Configuration

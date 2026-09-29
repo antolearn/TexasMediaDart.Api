@@ -169,6 +169,136 @@ public sealed class IdentityUserInvitationsClient
                 "Identity API returned an empty invitation finalization response.");
     }
 
+    public async Task<IReadOnlyList<PendingInvitationDto>> GetPendingAsync(
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        var requestUri =
+            "api/user-invitations/pending" +
+            $"?organizationId={organizationId}";
+
+        using var httpRequest =
+            new HttpRequestMessage(
+                HttpMethod.Get,
+                requestUri);
+
+        httpRequest.Headers.Add(
+            ServiceApiKeyHeader,
+            _serviceApiKey);
+
+        using var response =
+            await _httpClient.SendAsync(
+                httpRequest,
+                cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            throw new BadRequestException(
+                await ReadErrorMessageAsync(
+                    response,
+                    "Pending invitations query failed.",
+                    cancellationToken));
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new InvalidOperationException(
+                "Identity API rejected the service credential.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new ForbiddenException(
+                "Pending invitations query is forbidden.");
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<List<PendingInvitationDto>>(
+                cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException(
+                "Identity API returned an empty pending invitations response.");
+    }
+    public async Task<ResendInvitationDto> ResendAsync(
+        Guid invitationId,
+        Guid organizationId,
+        CancellationToken cancellationToken = default)
+    {
+        var requestUri =
+            $"api/user-invitations/{invitationId}/resend" +
+            $"?organizationId={organizationId}";
+
+        using var httpRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                requestUri);
+
+        httpRequest.Headers.Add(
+            ServiceApiKeyHeader,
+            _serviceApiKey);
+
+        using var response =
+            await _httpClient.SendAsync(
+                httpRequest,
+                cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            throw new BadRequestException(
+                await ReadErrorMessageAsync(
+                    response,
+                    "Invitation resend failed.",
+                    cancellationToken));
+        }
+
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            throw new InvalidOperationException(
+                "Identity API rejected the service credential.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+        {
+            throw new ForbiddenException(
+                "Invitation resend is forbidden.");
+        }
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new NotFoundException(
+                await ReadErrorMessageAsync(
+                    response,
+                    "The invitation was not found.",
+                    cancellationToken));
+        }
+
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            throw new ConflictException(
+                await ReadErrorMessageAsync(
+                    response,
+                    "Invitation resend failed.",
+                    cancellationToken));
+        }
+
+        if (response.StatusCode == HttpStatusCode.Gone)
+        {
+            throw new BadRequestException(
+                await ReadErrorMessageAsync(
+                    response,
+                    "The invitation is no longer valid.",
+                    cancellationToken));
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content
+            .ReadFromJsonAsync<ResendInvitationDto>(
+                cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException(
+                "Identity API returned an empty invitation resend response.");
+    }
     private static async Task<string> ReadErrorMessageAsync(
         HttpResponseMessage response,
         string fallbackMessage,
