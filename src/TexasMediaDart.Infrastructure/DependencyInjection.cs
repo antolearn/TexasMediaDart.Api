@@ -1,12 +1,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TexasMediaDart.Application.Organizations.Abstractions;
 using TexasMediaDart.Application.UserInvitations.Abstractions;
 using TexasMediaDart.Application.Users.Abstractions;
 using TexasMediaDart.Infrastructure.Http;
+using TexasMediaDart.Infrastructure.Notifications;
+using TexasMediaDart.Infrastructure.Organizations;
 using TexasMediaDart.Infrastructure.UserInvitations;
 using TexasMediaDart.Infrastructure.Users;
-using TexasMediaDart.Application.Organizations.Abstractions;
-using TexasMediaDart.Infrastructure.Organizations;
 
 namespace TexasMediaDart.Infrastructure;
 
@@ -20,18 +21,49 @@ public static class DependencyInjection
 
         services.AddTransient<BearerTokenHandler>();
 
+        //
+        // Organization API
+        //
+
         var organizationApiBaseUrl =
             configuration["Services:OrganizationApi:BaseUrl"]
             ?? throw new InvalidOperationException(
-                "Organization API base URL is not configured.");
+                "Services:OrganizationApi:BaseUrl is not configured.");
+
+        if (!Uri.TryCreate(
+                organizationApiBaseUrl,
+                UriKind.Absolute,
+                out var organizationApiBaseUri))
+        {
+            throw new InvalidOperationException(
+                "Services:OrganizationApi:BaseUrl must be a valid absolute URL.");
+        }
+
+        //
+        // Identity API
+        //
 
         var identityApiBaseUrl =
             configuration["Services:IdentityApi:BaseUrl"]
             ?? throw new InvalidOperationException(
-                "Identity API base URL is not configured.");
+                "Services:IdentityApi:BaseUrl is not configured.");
 
-        // Normal Organization API calls execute in the context
-        // of the currently authenticated user.
+        if (!Uri.TryCreate(
+                identityApiBaseUrl,
+                UriKind.Absolute,
+                out var identityApiBaseUri))
+        {
+            throw new InvalidOperationException(
+                "Services:IdentityApi:BaseUrl must be a valid absolute URL.");
+        }
+
+        //
+        // Organization users client.
+        //
+        // Calls execute in the context of the currently
+        // authenticated user.
+        //
+
         services
             .AddHttpClient<
                 IOrganizationUsersClient,
@@ -39,12 +71,17 @@ public static class DependencyInjection
                 client =>
                 {
                     client.BaseAddress =
-                        new Uri(organizationApiBaseUrl);
+                        organizationApiBaseUri;
                 })
             .AddHttpMessageHandler<BearerTokenHandler>();
 
-        // Normal Identity API calls execute in the context
-        // of the currently authenticated user.
+        //
+        // Identity users client.
+        //
+        // Calls execute in the context of the currently
+        // authenticated user.
+        //
+
         services
             .AddHttpClient<
                 IIdentityUsersClient,
@@ -52,13 +89,18 @@ public static class DependencyInjection
                 client =>
                 {
                     client.BaseAddress =
-                        new Uri(identityApiBaseUrl);
+                        identityApiBaseUri;
                 })
             .AddHttpMessageHandler<BearerTokenHandler>();
 
+        //
+        // Identity user invitations client.
+        //
         // Invitation acceptance is anonymous.
-        // Finalization adds the Identity service API key
-        // explicitly inside IdentityUserInvitationsClient.
+        // The Identity service API key is added explicitly
+        // inside IdentityUserInvitationsClient.
+        //
+
         services
             .AddHttpClient<
                 IIdentityUserInvitationsClient,
@@ -66,12 +108,16 @@ public static class DependencyInjection
                 client =>
                 {
                     client.BaseAddress =
-                        new Uri(identityApiBaseUrl);
+                        identityApiBaseUri;
                 });
 
-        // Organization invitation membership acceptance
-        // adds the Organization service API key explicitly
+        //
+        // Organization invitation membership acceptance.
+        //
+        // The Organization service API key is added explicitly
         // inside OrganizationUserInvitationsClient.
+        //
+
         services
             .AddHttpClient<
                 IOrganizationUserInvitationsClient,
@@ -79,10 +125,16 @@ public static class DependencyInjection
                 client =>
                 {
                     client.BaseAddress =
-                        new Uri(organizationApiBaseUrl);
+                        organizationApiBaseUri;
                 });
-        // Current Organization lookup executes in the context
-        // of the currently authenticated user.
+
+        //
+        // Current Organization lookup.
+        //
+        // Calls execute in the context of the currently
+        // authenticated user.
+        //
+
         services
             .AddHttpClient<
                 IOrganizationsClient,
@@ -90,11 +142,17 @@ public static class DependencyInjection
                 client =>
                 {
                     client.BaseAddress =
-                        new Uri(organizationApiBaseUrl);
+                        organizationApiBaseUri;
                 })
             .AddHttpMessageHandler<BearerTokenHandler>();
+
+        //
+        // Identity invitation creation.
+        //
         // Invitation creation executes in the context
         // of the currently authenticated user.
+        //
+
         services
             .AddHttpClient<
                 IIdentityUserInvitationCreationClient,
@@ -102,33 +160,47 @@ public static class DependencyInjection
                 client =>
                 {
                     client.BaseAddress =
-                        new Uri(identityApiBaseUrl);
+                        identityApiBaseUri;
                 })
             .AddHttpMessageHandler<BearerTokenHandler>();
 
-    var emailProvider =
-    configuration["Email:Provider"]
-    ?? throw new InvalidOperationException(
-        "Email:Provider is not configured.");
+        //
+        // Notification service.
+        //
+        // User invitation emails are no longer sent directly
+        // by the Main API.
+        //
+        // The Main API submits the invitation notification
+        // to TexasMediaDart.Notification.Api.
+        //
 
-switch (emailProvider)
-{
-    case "Log":
-        services.AddScoped<
-            IUserInvitationEmailSender,
-            LogUserInvitationEmailSender>();
-        break;
+        services.Configure<NotificationServiceOptions>(
+            configuration.GetSection(
+                NotificationServiceOptions.SectionName));
 
-        case "AzureCommunicationServices":
-            services.AddScoped<
-                IUserInvitationEmailSender,
-                AzureCommunicationUserInvitationEmailSender>();
-            break;
+        var notificationBaseUrl =
+            configuration["NotificationService:BaseUrl"]
+            ?? throw new InvalidOperationException(
+                "NotificationService:BaseUrl is not configured.");
 
-        default:
+        if (!Uri.TryCreate(
+                notificationBaseUrl,
+                UriKind.Absolute,
+                out var notificationBaseUri))
+        {
             throw new InvalidOperationException(
-                $"Unsupported email provider: {emailProvider}");
-    }
+                "NotificationService:BaseUrl must be a valid absolute URL.");
+        }
+
+        services
+            .AddHttpClient<
+                IUserInvitationEmailSender,
+                NotificationUserInvitationEmailSender>(
+                client =>
+                {
+                    client.BaseAddress =
+                        notificationBaseUri;
+                });
 
         return services;
     }
