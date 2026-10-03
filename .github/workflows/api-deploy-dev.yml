@@ -118,7 +118,7 @@ jobs:
           PACKAGE="artifacts/TexasMediaDart.Api-${{ needs.build.outputs.build_version }}.zip"
 
           if [ ! -f "$PACKAGE" ]; then
-            echo "API package was not found:"
+            echo "ERROR: API package was not found:"
             echo "$PACKAGE"
             exit 1
           fi
@@ -138,7 +138,9 @@ jobs:
         env:
           IDENTITY_SERVICE_API_KEY: ${{ secrets.IDENTITY_SERVICE_API_KEY }}
           ORGANIZATION_SERVICE_API_KEY: ${{ secrets.ORGANIZATION_SERVICE_API_KEY }}
-          COMMUNICATION_SERVICES_CONNECTION_STRING: ${{ secrets.COMMUNICATION_SERVICES_CONNECTION_STRING }}
+          NOTIFICATION_SERVICE_API_KEY: ${{ secrets.NOTIFICATION_SERVICE_API_KEY }}
+          NOTIFICATION_SERVICE_BASE_URL: ${{ vars.NOTIFICATION_SERVICE_BASE_URL }}
+          FRONTEND_BASE_URL: ${{ vars.FRONTEND_BASE_URL }}
         run: |
           if [ -z "$IDENTITY_SERVICE_API_KEY" ]; then
             echo "ERROR: GitHub secret IDENTITY_SERVICE_API_KEY is missing or empty."
@@ -150,59 +152,93 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$COMMUNICATION_SERVICES_CONNECTION_STRING" ]; then
-            echo "ERROR: GitHub secret COMMUNICATION_SERVICES_CONNECTION_STRING is missing or empty."
+          if [ -z "$NOTIFICATION_SERVICE_API_KEY" ]; then
+            echo "ERROR: GitHub secret NOTIFICATION_SERVICE_API_KEY is missing or empty."
             exit 1
           fi
 
-          echo "Required DEV secrets are available to the deployment."
+          if [ -z "$NOTIFICATION_SERVICE_BASE_URL" ]; then
+            echo "ERROR: GitHub variable NOTIFICATION_SERVICE_BASE_URL is missing or empty."
+            exit 1
+          fi
+
+          if [ -z "$FRONTEND_BASE_URL" ]; then
+            echo "ERROR: GitHub variable FRONTEND_BASE_URL is missing or empty."
+            exit 1
+          fi
+
+          echo "Required DEV configuration is available."
+          echo "Notification Service Base URL: $NOTIFICATION_SERVICE_BASE_URL"
+          echo "Frontend Base URL: $FRONTEND_BASE_URL"
+
+      - name: Verify Notification API health
+        shell: bash
+        env:
+          NOTIFICATION_SERVICE_BASE_URL: ${{ vars.NOTIFICATION_SERVICE_BASE_URL }}
+        run: |
+          HEALTH_URL="${NOTIFICATION_SERVICE_BASE_URL%/}/health"
+
+          echo "Checking Notification API:"
+          echo "$HEALTH_URL"
+
+          curl \
+            --fail \
+            --show-error \
+            --silent \
+            --retry 3 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            "$HEALTH_URL"
+
+          echo
+          echo "Notification API health validation passed."
 
       - name: Configure DEV application settings
         shell: bash
         env:
           IDENTITY_SERVICE_API_KEY: ${{ secrets.IDENTITY_SERVICE_API_KEY }}
           ORGANIZATION_SERVICE_API_KEY: ${{ secrets.ORGANIZATION_SERVICE_API_KEY }}
-          COMMUNICATION_SERVICES_CONNECTION_STRING: ${{ secrets.COMMUNICATION_SERVICES_CONNECTION_STRING }}
+          NOTIFICATION_SERVICE_API_KEY: ${{ secrets.NOTIFICATION_SERVICE_API_KEY }}
+          NOTIFICATION_SERVICE_BASE_URL: ${{ vars.NOTIFICATION_SERVICE_BASE_URL }}
+          FRONTEND_BASE_URL: ${{ vars.FRONTEND_BASE_URL }}
         run: |
           az webapp config appsettings set \
             --name "${{ env.AZURE_WEBAPP_NAME }}" \
             --resource-group "TexasMediaDart-Dev" \
             --settings \
-              "COMMUNICATION_SERVICES_CONNECTION_STRING=$COMMUNICATION_SERVICES_CONNECTION_STRING" \
-              "Email__Provider=${{ vars.EMAIL_PROVIDER }}" \
-              "Email__SenderAddress=${{ vars.EMAIL_SENDER_ADDRESS }}" \
-              "Email__SenderDisplayName=${{ vars.EMAIL_SENDER_DISPLAY_NAME }}" \
-              "Frontend__BaseUrl=${{ vars.FRONTEND_BASE_URL }}" \
+              "Frontend__BaseUrl=$FRONTEND_BASE_URL" \
               "ServiceAuthentication__IdentityApiKey=$IDENTITY_SERVICE_API_KEY" \
-              "ServiceAuthentication__OrganizationApiKey=$ORGANIZATION_SERVICE_API_KEY"
+              "ServiceAuthentication__OrganizationApiKey=$ORGANIZATION_SERVICE_API_KEY" \
+              "NotificationService__BaseUrl=$NOTIFICATION_SERVICE_BASE_URL" \
+              "NotificationService__ApiKey=$NOTIFICATION_SERVICE_API_KEY"
 
-      - name: Verify DEV service authentication settings
+      - name: Verify DEV application settings
         shell: bash
         run: |
-          IDENTITY_SETTING=$(az webapp config appsettings list \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
-            --resource-group "TexasMediaDart-Dev" \
-            --query "[?name=='ServiceAuthentication__IdentityApiKey'].name | [0]" \
-            --output tsv)
+          REQUIRED_SETTINGS=(
+            "Frontend__BaseUrl"
+            "ServiceAuthentication__IdentityApiKey"
+            "ServiceAuthentication__OrganizationApiKey"
+            "NotificationService__BaseUrl"
+            "NotificationService__ApiKey"
+          )
 
-          if [ "$IDENTITY_SETTING" != "ServiceAuthentication__IdentityApiKey" ]; then
-            echo "ERROR: ServiceAuthentication__IdentityApiKey was not created in Azure App Service."
-            exit 1
-          fi
+          for SETTING in "${REQUIRED_SETTINGS[@]}"; do
+            SETTING_EXISTS=$(az webapp config appsettings list \
+              --name "${{ env.AZURE_WEBAPP_NAME }}" \
+              --resource-group "TexasMediaDart-Dev" \
+              --query "[?name=='$SETTING'].name | [0]" \
+              --output tsv)
 
-          ORGANIZATION_SETTING=$(az webapp config appsettings list \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
-            --resource-group "TexasMediaDart-Dev" \
-            --query "[?name=='ServiceAuthentication__OrganizationApiKey'].name | [0]" \
-            --output tsv)
+            if [ "$SETTING_EXISTS" != "$SETTING" ]; then
+              echo "ERROR: $SETTING was not created in Azure App Service."
+              exit 1
+            fi
 
-          if [ "$ORGANIZATION_SETTING" != "ServiceAuthentication__OrganizationApiKey" ]; then
-            echo "ERROR: ServiceAuthentication__OrganizationApiKey was not created in Azure App Service."
-            exit 1
-          fi
+            echo "$SETTING exists."
+          done
 
-          echo "Identity service authentication setting exists."
-          echo "Organization service authentication setting exists."
+          echo "All required DEV application settings exist."
 
       - name: Deploy API to Azure App Service
         uses: azure/webapps-deploy@v3
